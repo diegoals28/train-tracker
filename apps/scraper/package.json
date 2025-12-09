@@ -10,6 +10,7 @@
     "scrape": "tsx src/index.ts"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@train-tracker/database": "workspace:*",
     "node-cron": "^3.0.3",
     "undici": "^6.21.0"

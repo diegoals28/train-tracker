@@ -1,5 +1,7 @@
 import cron from "node-cron";
-import { db, Provider } from "@train-tracker/database";
+import { PrismaClient, Provider } from "@prisma/client";
+
+const db = new PrismaClient();
 import {
   scrapeTrenitalia,
   TRENITALIA_STATIONS,

@@ -14,7 +14,10 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "Bash(pnpm build:*)",
-      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" pnpm --filter @train-tracker/database db:push:*)"
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" pnpm --filter @train-tracker/database db:push:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" WEBSHARE_API_KEY=\"$WEBSHARE_API_KEY:-\" RUN_ON_START=\"true\" pnpm --filter @train-tracker/scraper scrape:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" pnpm --filter @train-tracker/database db:generate:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" RUN_ON_START=\"true\" pnpm --filter @train-tracker/scraper scrape:*)"
     ]
   }
 }
