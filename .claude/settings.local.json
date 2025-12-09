@@ -13,7 +13,8 @@
       "Bash(powershell -Command \"cd C:/Users/info/train-tracker; gh auth status\")",
       "Bash(git remote add:*)",
       "Bash(git push:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" pnpm --filter @train-tracker/database db:push:*)"
     ]
   }
 }
