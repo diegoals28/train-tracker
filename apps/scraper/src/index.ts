@@ -6,78 +6,119 @@ import {
   scrapeTrenitalia,
   TRENITALIA_STATIONS,
 } from "./scrapers/trenitalia.js";
-import { scrapeItalo, ITALO_STATIONS } from "./scrapers/italo.js";
 
-// Initial routes to monitor
-const INITIAL_ROUTES = [
-  {
+// Specific schedule configuration
+const SCHEDULE_CONFIG = {
+  // Roma -> Napoli: departure at 07:00
+  outbound: {
     origin: "ROMA_TERMINI",
     destination: "NAPOLI_CENTRALE",
     originName: "Roma Termini",
     destName: "Napoli Centrale",
+    departureHour: 7, // 07:00
   },
-  {
+  // Napoli -> Roma: departure at 17:00
+  return: {
     origin: "NAPOLI_CENTRALE",
     destination: "ROMA_TERMINI",
     originName: "Napoli Centrale",
     destName: "Roma Termini",
+    departureHour: 17, // 17:00
   },
-];
+};
 
 async function ensureRoutesExist() {
   console.log("Ensuring routes exist in database...");
 
-  for (const route of INITIAL_ROUTES) {
-    // Create Trenitalia route (store numeric ID as string)
-    await db.route.upsert({
-      where: {
-        origin_destination_provider: {
-          origin: String(TRENITALIA_STATIONS[route.origin]),
-          destination: String(TRENITALIA_STATIONS[route.destination]),
-          provider: Provider.TRENITALIA,
-        },
-      },
-      create: {
-        origin: String(TRENITALIA_STATIONS[route.origin]),
-        destination: String(TRENITALIA_STATIONS[route.destination]),
-        originName: route.originName,
-        destName: route.destName,
+  // Create outbound route (Roma -> Napoli)
+  await db.route.upsert({
+    where: {
+      origin_destination_provider: {
+        origin: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.origin]),
+        destination: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.destination]),
         provider: Provider.TRENITALIA,
       },
-      update: {},
-    });
+    },
+    create: {
+      origin: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.origin]),
+      destination: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.destination]),
+      originName: SCHEDULE_CONFIG.outbound.originName,
+      destName: SCHEDULE_CONFIG.outbound.destName,
+      provider: Provider.TRENITALIA,
+    },
+    update: {},
+  });
 
-    // Create Italo route
-    await db.route.upsert({
-      where: {
-        origin_destination_provider: {
-          origin: ITALO_STATIONS[route.origin],
-          destination: ITALO_STATIONS[route.destination],
-          provider: Provider.ITALO,
-        },
+  // Create return route (Napoli -> Roma)
+  await db.route.upsert({
+    where: {
+      origin_destination_provider: {
+        origin: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.origin]),
+        destination: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.destination]),
+        provider: Provider.TRENITALIA,
       },
-      create: {
-        origin: ITALO_STATIONS[route.origin],
-        destination: ITALO_STATIONS[route.destination],
-        originName: route.originName,
-        destName: route.destName,
-        provider: Provider.ITALO,
-      },
-      update: {},
-    });
-  }
+    },
+    create: {
+      origin: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.origin]),
+      destination: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.destination]),
+      originName: SCHEDULE_CONFIG.return.originName,
+      destName: SCHEDULE_CONFIG.return.destName,
+      provider: Provider.TRENITALIA,
+    },
+    update: {},
+  });
 
   console.log("Routes initialized");
 }
 
-async function scrapeAllRoutes() {
-  console.log(`Starting scrape at ${new Date().toISOString()}`);
+// Check if a train departure time is within the target window
+// Trenitalia returns times in Italian timezone (CET = UTC+1 in winter, CEST = UTC+2 in summer)
+// We use UTC hours and adjust for Italian time
+function isInTimeWindow(departureTime: Date, targetHour: number): boolean {
+  // Get UTC hours and add 1 for CET (Italian winter time)
+  // In summer it would be +2 for CEST, but for simplicity we use +1
+  const utcHour = departureTime.getUTCHours();
+  const italianHour = (utcHour + 1) % 24; // Convert UTC to Italian time (CET)
+  const minutes = departureTime.getUTCMinutes();
 
-  const routes = await db.route.findMany({
-    where: { active: true },
+  // Wider window: accept trains departing within 30 minutes of target hour
+  // e.g., for targetHour=7: accept 06:30 - 07:30 Italian time
+  // e.g., for targetHour=17: accept 16:30 - 17:30 Italian time
+  if (italianHour === targetHour - 1 && minutes >= 30) return true;
+  if (italianHour === targetHour && minutes <= 30) return true;
+
+  return false;
+}
+
+async function scrapeSpecificSchedules() {
+  console.log(`Starting scheduled scrape at ${new Date().toISOString()}`);
+  console.log("Target schedules:");
+  console.log("  - Outbound (Roma -> Napoli): ~07:00");
+  console.log("  - Return (Napoli -> Roma): ~17:00");
+
+  // Get routes from database
+  const outboundRoute = await db.route.findFirst({
+    where: {
+      origin: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.origin]),
+      destination: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.destination]),
+      provider: Provider.TRENITALIA,
+      active: true,
+    },
   });
 
-  console.log(`Found ${routes.length} active routes to scrape`);
+  const returnRoute = await db.route.findFirst({
+    where: {
+      origin: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.origin]),
+      destination: String(TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.destination]),
+      provider: Provider.TRENITALIA,
+      active: true,
+    },
+  });
+
+  if (!outboundRoute || !returnRoute) {
+    console.error("Routes not found in database!");
+    return;
+  }
 
   // Scrape for the next 30 days
   const today = new Date();
@@ -88,29 +129,31 @@ async function scrapeAllRoutes() {
     dates.push(date);
   }
 
-  for (const route of routes) {
-    console.log(
-      `Scraping ${route.originName} -> ${route.destName} (${route.provider})`
-    );
+  let savedOutbound = 0;
+  let savedReturn = 0;
 
-    for (const date of dates) {
-      try {
-        let results;
+  for (const date of dates) {
+    const dateStr = date.toISOString().split("T")[0];
 
-        if (route.provider === Provider.TRENITALIA) {
-          // Trenitalia uses numeric IDs
-          results = await scrapeTrenitalia(parseInt(route.origin), parseInt(route.destination), date);
-        } else {
-          // Italo uses string codes
-          results = await scrapeItalo(route.origin, route.destination, date);
-        }
+    try {
+      // Scrape OUTBOUND (Roma -> Napoli) starting at 06:00
+      console.log(`\nScraping outbound for ${dateStr}...`);
+      const outboundDate = new Date(date);
+      outboundDate.setHours(6, 0, 0, 0); // Start search at 06:00
 
-        // Save prices to database
-        for (const train of results) {
+      const outboundResults = await scrapeTrenitalia(
+        TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.origin],
+        TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.destination],
+        outboundDate
+      );
+
+      // Filter and save only trains around 07:00
+      for (const train of outboundResults) {
+        if (isInTimeWindow(train.departureTime, SCHEDULE_CONFIG.outbound.departureHour)) {
           for (const price of train.prices) {
             await db.price.create({
               data: {
-                routeId: route.id,
+                routeId: outboundRoute.id,
                 departureAt: train.departureTime,
                 trainNumber: train.trainNumber,
                 trainType: train.trainType,
@@ -119,25 +162,62 @@ async function scrapeAllRoutes() {
                 duration: train.duration,
               },
             });
+            savedOutbound++;
           }
+          console.log(`  Saved: ${train.trainNumber} at ${train.departureTime.toISOString()}`);
         }
-
-        // Add delay between requests to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      } catch (error) {
-        console.error(
-          `Error scraping ${route.provider} for date ${date.toISOString()}:`,
-          error
-        );
       }
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Scrape RETURN (Napoli -> Roma) starting at 16:00
+      console.log(`Scraping return for ${dateStr}...`);
+      const returnDate = new Date(date);
+      returnDate.setHours(16, 0, 0, 0); // Start search at 16:00
+
+      const returnResults = await scrapeTrenitalia(
+        TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.origin],
+        TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.destination],
+        returnDate
+      );
+
+      // Filter and save only trains around 17:00
+      for (const train of returnResults) {
+        if (isInTimeWindow(train.departureTime, SCHEDULE_CONFIG.return.departureHour)) {
+          for (const price of train.prices) {
+            await db.price.create({
+              data: {
+                routeId: returnRoute.id,
+                departureAt: train.departureTime,
+                trainNumber: train.trainNumber,
+                trainType: train.trainType,
+                price: price.price,
+                class: price.class,
+                duration: train.duration,
+              },
+            });
+            savedReturn++;
+          }
+          console.log(`  Saved: ${train.trainNumber} at ${train.departureTime.toISOString()}`);
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    } catch (error) {
+      console.error(`Error scraping for date ${dateStr}:`, error);
     }
   }
 
-  console.log(`Scrape completed at ${new Date().toISOString()}`);
+  console.log(`\nScrape completed at ${new Date().toISOString()}`);
+  console.log(`Saved ${savedOutbound} outbound prices (07:00)`);
+  console.log(`Saved ${savedReturn} return prices (17:00)`);
 }
 
 async function main() {
   console.log("Train Price Tracker - Scraper starting...");
+  console.log("Focused on Roma <-> Napoli schedules:");
+  console.log("  - Ida: 07:00 (Roma Termini -> Napoli Centrale)");
+  console.log("  - Vuelta: 17:00 (Napoli Centrale -> Roma Termini)");
 
   // Initialize routes
   await ensureRoutesExist();
@@ -145,7 +225,7 @@ async function main() {
   // Run immediately on start
   const runOnStart = process.env.RUN_ON_START === "true";
   if (runOnStart) {
-    await scrapeAllRoutes();
+    await scrapeSpecificSchedules();
   }
 
   // Schedule daily scraping at 6:00 AM
@@ -154,7 +234,7 @@ async function main() {
 
   cron.schedule(cronSchedule, async () => {
     try {
-      await scrapeAllRoutes();
+      await scrapeSpecificSchedules();
     } catch (error) {
       console.error("Scheduled scrape failed:", error);
     }

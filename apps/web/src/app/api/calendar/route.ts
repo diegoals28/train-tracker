@@ -79,16 +79,16 @@ export async function GET(request: NextRequest) {
     }> = {};
 
     // Process outbound (07:00 Italian time = 06:00 UTC)
-    // Expanded window: 05:45 - 07:15 UTC to catch 06:45 - 08:15 Italian time
+    // Expanded window: 05:30 - 07:30 UTC to catch 06:30 - 08:30 Italian time
     for (const price of outboundPrices) {
       const departure = new Date(price.departureAt);
       const hour = departure.getUTCHours();
       const minutes = departure.getUTCMinutes();
 
-      // Include trains departing between 05:45 and 07:15 UTC (06:45-08:15 Italian)
-      const inWindow = (hour === 5 && minutes >= 45) ||
+      // Include trains departing between 05:30 and 07:30 UTC (06:30-08:30 Italian)
+      const inWindow = (hour === 5 && minutes >= 30) ||
                        (hour === 6) ||
-                       (hour === 7 && minutes <= 15);
+                       (hour === 7 && minutes <= 30);
 
       if (inWindow) {
         const dateKey = departure.toISOString().split("T")[0];
@@ -110,16 +110,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Process return (17:00 Italian time = 16:00 UTC)
-    // Expanded window: 15:45 - 17:15 UTC to catch 16:45 - 18:15 Italian time
+    // Expanded window: 15:30 - 17:30 UTC to catch 16:30 - 18:30 Italian time
     for (const price of returnPrices) {
       const departure = new Date(price.departureAt);
       const hour = departure.getUTCHours();
       const minutes = departure.getUTCMinutes();
 
-      // Include trains departing between 15:45 and 17:15 UTC (16:45-18:15 Italian)
-      const inWindow = (hour === 15 && minutes >= 45) ||
+      // Include trains departing between 15:30 and 17:30 UTC (16:30-18:30 Italian)
+      const inWindow = (hour === 15 && minutes >= 30) ||
                        (hour === 16) ||
-                       (hour === 17 && minutes <= 15);
+                       (hour === 17 && minutes <= 30);
 
       if (inWindow) {
         const dateKey = departure.toISOString().split("T")[0];

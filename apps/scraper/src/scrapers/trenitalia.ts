@@ -98,8 +98,8 @@ export async function scrapeTrenitalia(
   destCode: number,
   date: Date
 ): Promise<TrenitaliaResult[]> {
+  // Use the time from the passed date parameter instead of hardcoding 06:00
   const departureTime = new Date(date);
-  departureTime.setHours(6, 0, 0, 0);
 
   const url = "https://www.lefrecce.it/Channels.Website.BFF.WEB/website/ticket/solutions";
 
