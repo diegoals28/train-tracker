@@ -22,7 +22,11 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "Bash(curl:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" npx prisma db pull:*)",
+      "Bash(npx vercel:*)",
+      "WebFetch(domain:train-tracker-diegoals28.vercel.app)",
+      "WebFetch(domain:train-tracker-web.vercel.app)"
     ]
   }
 }
