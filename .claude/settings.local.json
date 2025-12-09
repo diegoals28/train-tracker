@@ -12,7 +12,8 @@
       "Bash(where:*)",
       "Bash(powershell -Command \"cd C:/Users/info/train-tracker; gh auth status\")",
       "Bash(git remote add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(pnpm build:*)"
     ]
   }
 }
