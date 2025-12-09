@@ -78,14 +78,19 @@ export async function GET(request: NextRequest) {
       return: { price: number; trainNumber: string; departureTime: string; class: string } | null;
     }> = {};
 
-    // Process outbound (07:00 - 07:15 window)
+    // Process outbound (07:00 Italian time = 06:00 UTC)
+    // Expanded window: 05:45 - 07:15 UTC to catch 06:45 - 08:15 Italian time
     for (const price of outboundPrices) {
       const departure = new Date(price.departureAt);
       const hour = departure.getUTCHours();
       const minutes = departure.getUTCMinutes();
 
-      // Only include trains departing between 06:45 and 07:15 (to account for 07:00, 07:05, etc.)
-      if (hour === 6 && minutes >= 45 || hour === 7 && minutes <= 15) {
+      // Include trains departing between 05:45 and 07:15 UTC (06:45-08:15 Italian)
+      const inWindow = (hour === 5 && minutes >= 45) ||
+                       (hour === 6) ||
+                       (hour === 7 && minutes <= 15);
+
+      if (inWindow) {
         const dateKey = departure.toISOString().split("T")[0];
         const priceNum = Number(price.price);
 
@@ -104,14 +109,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Process return (17:00 - 17:15 window)
+    // Process return (17:00 Italian time = 16:00 UTC)
+    // Expanded window: 15:45 - 17:15 UTC to catch 16:45 - 18:15 Italian time
     for (const price of returnPrices) {
       const departure = new Date(price.departureAt);
       const hour = departure.getUTCHours();
       const minutes = departure.getUTCMinutes();
 
-      // Only include trains departing between 16:45 and 17:15
-      if (hour === 16 && minutes >= 45 || hour === 17 && minutes <= 15) {
+      // Include trains departing between 15:45 and 17:15 UTC (16:45-18:15 Italian)
+      const inWindow = (hour === 15 && minutes >= 45) ||
+                       (hour === 16) ||
+                       (hour === 17 && minutes <= 15);
+
+      if (inWindow) {
         const dateKey = departure.toISOString().split("T")[0];
         const priceNum = Number(price.price);
 
