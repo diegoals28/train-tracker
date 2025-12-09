@@ -1,0 +1,47 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Provider {
+  TRENITALIA
+  ITALO
+}
+
+model Route {
+  id          String   @id @default(cuid())
+  origin      String   // Station code
+  destination String   // Station code
+  originName  String   // Human readable name
+  destName    String   // Human readable name
+  provider    Provider
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  prices      Price[]
+
+  @@unique([origin, destination, provider])
+  @@index([active])
+}
+
+model Price {
+  id          String   @id @default(cuid())
+  routeId     String
+  route       Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  departureAt DateTime // Train departure time
+  trainNumber String   // Train identifier
+  trainType   String   // Frecciarossa, Italo, etc.
+  price       Decimal  @db.Decimal(10, 2)
+  class       String   // Standard, Business, Prima, etc.
+  duration    Int?     // Duration in minutes
+  scrapedAt   DateTime @default(now())
+
+  @@index([routeId, departureAt])
+  @@index([scrapedAt])
+  @@index([routeId, scrapedAt])
+}

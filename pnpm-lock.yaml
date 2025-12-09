@@ -45,9 +45,9 @@ importers:
 
   apps/web:
     dependencies:
-      '@train-tracker/database':
-        specifier: workspace:*
-        version: link:../../packages/database
+      '@prisma/client':
+        specifier: ^5.22.0
+        version: 5.22.0(prisma@5.22.0)
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0

@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate --schema=../../packages/database/prisma/schema.prisma && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate --schema=../../packages/database/prisma/schema.prisma"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@train-tracker/database": "workspace:*",
+    "@prisma/client": "^5.22.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
