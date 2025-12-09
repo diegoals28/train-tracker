@@ -28,18 +28,18 @@ async function ensureRoutesExist() {
   console.log("Ensuring routes exist in database...");
 
   for (const route of INITIAL_ROUTES) {
-    // Create Trenitalia route
+    // Create Trenitalia route (store numeric ID as string)
     await db.route.upsert({
       where: {
         origin_destination_provider: {
-          origin: TRENITALIA_STATIONS[route.origin],
-          destination: TRENITALIA_STATIONS[route.destination],
+          origin: String(TRENITALIA_STATIONS[route.origin]),
+          destination: String(TRENITALIA_STATIONS[route.destination]),
           provider: Provider.TRENITALIA,
         },
       },
       create: {
-        origin: TRENITALIA_STATIONS[route.origin],
-        destination: TRENITALIA_STATIONS[route.destination],
+        origin: String(TRENITALIA_STATIONS[route.origin]),
+        destination: String(TRENITALIA_STATIONS[route.destination]),
         originName: route.originName,
         destName: route.destName,
         provider: Provider.TRENITALIA,
@@ -98,8 +98,10 @@ async function scrapeAllRoutes() {
         let results;
 
         if (route.provider === Provider.TRENITALIA) {
-          results = await scrapeTrenitalia(route.origin, route.destination, date);
+          // Trenitalia uses numeric IDs
+          results = await scrapeTrenitalia(parseInt(route.origin), parseInt(route.destination), date);
         } else {
+          // Italo uses string codes
           results = await scrapeItalo(route.origin, route.destination, date);
         }
 

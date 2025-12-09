@@ -60,14 +60,32 @@ export async function fetchWithProxy(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const proxies = await fetchWebshareProxies();
-  const proxy = getRandomProxy(proxies);
-  const agent = createProxyAgent(proxy);
+  const apiKey = process.env.WEBSHARE_API_KEY;
 
-  const { fetch: undiciFetch } = await import("undici");
+  // If no API key or proxies fail, use direct fetch
+  if (!apiKey) {
+    console.log("No WEBSHARE_API_KEY, using direct fetch");
+    return fetch(url, options);
+  }
 
-  return undiciFetch(url, {
-    ...options,
-    dispatcher: agent,
-  }) as unknown as Response;
+  try {
+    const proxies = await fetchWebshareProxies();
+    if (proxies.length === 0) {
+      console.log("No proxies available, using direct fetch");
+      return fetch(url, options);
+    }
+
+    const proxy = getRandomProxy(proxies);
+    const agent = createProxyAgent(proxy);
+
+    const { fetch: undiciFetch } = await import("undici");
+
+    return undiciFetch(url, {
+      ...options,
+      dispatcher: agent,
+    }) as unknown as Response;
+  } catch (error) {
+    console.log("Proxy error, falling back to direct fetch:", error);
+    return fetch(url, options);
+  }
 }
