@@ -9,6 +9,8 @@ interface PriceInfo {
   trainNumber: string;
   departureTime: string;
   class: string;
+  availableSeats: number | null;
+  totalAvailable: number | null;
 }
 
 interface SelectedDate {
@@ -33,12 +35,16 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
         : "N/A",
       "Ida - Clase": item.outbound?.class || "N/A",
       "Ida - Precio (€)": item.outbound?.price || 0,
+      "Ida - Disponibles": item.outbound?.availableSeats ?? "N/A",
+      "Ida - Total Disp.": item.outbound?.totalAvailable ?? "N/A",
       "Vuelta - Tren": item.return?.trainNumber || "N/A",
       "Vuelta - Hora": item.return
         ? format(new Date(item.return.departureTime), "HH:mm")
         : "N/A",
       "Vuelta - Clase": item.return?.class || "N/A",
       "Vuelta - Precio (€)": item.return?.price || 0,
+      "Vuelta - Disponibles": item.return?.availableSeats ?? "N/A",
+      "Vuelta - Total Disp.": item.return?.totalAvailable ?? "N/A",
       "Total (€)": (item.outbound?.price || 0) + (item.return?.price || 0),
     }));
 
@@ -58,10 +64,14 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
       "Ida - Hora": "",
       "Ida - Clase": "",
       "Ida - Precio (€)": totals.outbound,
+      "Ida - Disponibles": "",
+      "Ida - Total Disp.": "",
       "Vuelta - Tren": "",
       "Vuelta - Hora": "",
       "Vuelta - Clase": "",
       "Vuelta - Precio (€)": totals.return,
+      "Vuelta - Disponibles": "",
+      "Vuelta - Total Disp.": "",
       "Total (€)": totals.outbound + totals.return,
     });
 
@@ -76,10 +86,14 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
       { wch: 10 }, // Ida - Hora
       { wch: 20 }, // Ida - Clase
       { wch: 15 }, // Ida - Precio
+      { wch: 14 }, // Ida - Disponibles
+      { wch: 14 }, // Ida - Total Disp.
       { wch: 12 }, // Vuelta - Tren
       { wch: 10 }, // Vuelta - Hora
       { wch: 20 }, // Vuelta - Clase
       { wch: 15 }, // Vuelta - Precio
+      { wch: 14 }, // Vuelta - Disponibles
+      { wch: 14 }, // Vuelta - Total Disp.
       { wch: 12 }, // Total
     ];
     worksheet["!cols"] = colWidths;
@@ -104,9 +118,9 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
 
   if (selectedDates.length === 0) {
     return (
-      <div className="bg-gray-50 rounded-lg p-6 text-center text-gray-500">
+      <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-500">
         <svg
-          className="mx-auto h-12 w-12 text-gray-400 mb-3"
+          className="mx-auto h-12 w-12 text-gray-300 mb-3"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -118,8 +132,8 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
           />
         </svg>
-        <p className="font-medium">No hay fechas seleccionadas</p>
-        <p className="text-sm mt-1">
+        <p className="font-medium text-gray-700">No hay fechas seleccionadas</p>
+        <p className="text-sm mt-1 text-gray-500">
           Haz clic en las fechas del calendario para seleccionarlas
         </p>
       </div>
@@ -127,14 +141,14 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b flex items-center justify-between">
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">
           Fechas Seleccionadas ({selectedDates.length})
         </h3>
         <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-orange hover:bg-brand-orange-dark text-white rounded-lg font-medium transition-colors"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
@@ -152,22 +166,28 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">
+              <th className="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wider">
                 Fecha
               </th>
-              <th className="px-4 py-3 text-left font-medium text-green-600">
+              <th className="px-4 py-3 text-left font-medium text-brand-orange text-xs uppercase tracking-wider">
                 Ida (Roma → Napoli)
               </th>
-              <th className="px-4 py-3 text-right font-medium text-green-600">
-                Precio Ida
+              <th className="px-4 py-3 text-right font-medium text-brand-orange text-xs uppercase tracking-wider">
+                Precio
               </th>
-              <th className="px-4 py-3 text-left font-medium text-blue-600">
+              <th className="px-4 py-3 text-center font-medium text-brand-orange text-xs uppercase tracking-wider">
+                Disp.
+              </th>
+              <th className="px-4 py-3 text-left font-medium text-brand-green text-xs uppercase tracking-wider">
                 Vuelta (Napoli → Roma)
               </th>
-              <th className="px-4 py-3 text-right font-medium text-blue-600">
-                Precio Vuelta
+              <th className="px-4 py-3 text-right font-medium text-brand-green text-xs uppercase tracking-wider">
+                Precio
               </th>
-              <th className="px-4 py-3 text-right font-medium text-gray-900">
+              <th className="px-4 py-3 text-center font-medium text-brand-green text-xs uppercase tracking-wider">
+                Disp.
+              </th>
+              <th className="px-4 py-3 text-right font-medium text-gray-900 text-xs uppercase tracking-wider">
                 Total
               </th>
             </tr>
@@ -194,8 +214,24 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right font-medium text-green-600">
+                <td className="px-4 py-3 text-right font-medium text-brand-orange">
                   {item.outbound ? `€${item.outbound.price.toFixed(2)}` : "-"}
+                </td>
+                <td className="px-4 py-3 text-center text-gray-600">
+                  {item.outbound ? (
+                    <div className="text-xs">
+                      <div className="font-medium text-gray-700">
+                        {item.outbound.availableSeats ?? "-"}
+                      </div>
+                      {item.outbound.totalAvailable !== null && (
+                        <div className="text-gray-400">
+                          ({item.outbound.totalAvailable})
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-gray-600">
                   {item.return ? (
@@ -213,8 +249,24 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right font-medium text-blue-600">
+                <td className="px-4 py-3 text-right font-medium text-brand-green">
                   {item.return ? `€${item.return.price.toFixed(2)}` : "-"}
+                </td>
+                <td className="px-4 py-3 text-center text-gray-600">
+                  {item.return ? (
+                    <div className="text-xs">
+                      <div className="font-medium text-gray-700">
+                        {item.return.availableSeats ?? "-"}
+                      </div>
+                      {item.return.totalAvailable !== null && (
+                        <div className="text-gray-400">
+                          ({item.return.totalAvailable})
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right font-bold text-gray-900">
                   €
@@ -225,17 +277,19 @@ export function SelectedDatesPanel({ selectedDates }: SelectedDatesPanelProps) {
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-gray-100 font-semibold">
+          <tfoot className="bg-gray-50 font-semibold">
             <tr>
               <td className="px-4 py-3 text-gray-900">TOTAL</td>
               <td className="px-4 py-3"></td>
-              <td className="px-4 py-3 text-right text-green-600">
+              <td className="px-4 py-3 text-right text-brand-orange">
                 €{totalOutbound.toFixed(2)}
               </td>
               <td className="px-4 py-3"></td>
-              <td className="px-4 py-3 text-right text-blue-600">
+              <td className="px-4 py-3"></td>
+              <td className="px-4 py-3 text-right text-brand-green">
                 €{totalReturn.toFixed(2)}
               </td>
+              <td className="px-4 py-3"></td>
               <td className="px-4 py-3 text-right text-lg text-gray-900">
                 €{grandTotal.toFixed(2)}
               </td>

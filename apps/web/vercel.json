@@ -1,5 +1,6 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && pnpm db:generate && pnpm build --filter=@train-tracker/web"
+  "installCommand": "npm install",
+  "buildCommand": "npx prisma generate && npm run build"
 }

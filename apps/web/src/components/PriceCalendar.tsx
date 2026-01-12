@@ -22,6 +22,8 @@ interface PriceInfo {
   trainNumber: string;
   departureTime: string;
   class: string;
+  availableSeats: number | null;
+  totalAvailable: number | null;
 }
 
 interface CalendarData {
@@ -47,11 +49,12 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [monthsToShow, setMonthsToShow] = useState(2);
 
   const fetchCalendarData = useCallback(async () => {
     setLoading(true);
     const start = startOfMonth(currentMonth);
-    const end = endOfMonth(addMonths(currentMonth, 1)); // Fetch 2 months
+    const end = endOfMonth(addMonths(currentMonth, monthsToShow - 1)); // Fetch based on monthsToShow
 
     try {
       const response = await fetch(
@@ -64,7 +67,7 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
     } finally {
       setLoading(false);
     }
-  }, [currentMonth]);
+  }, [currentMonth, monthsToShow]);
 
   useEffect(() => {
     fetchCalendarData();
@@ -104,8 +107,8 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
-      <div className="bg-white rounded-lg shadow p-4">
-        <h3 className="text-lg font-semibold text-center mb-4 text-gray-800">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4">
+        <h3 className="text-lg font-semibold text-center mb-4 text-gray-900">
           {format(monthDate, "MMMM yyyy", { locale: es })}
         </h3>
 
@@ -136,13 +139,13 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
               <div
                 key={dateStr}
                 className={`
-                  relative min-h-[60px] p-1 rounded-md cursor-pointer transition-all
+                  relative min-h-[60px] p-1 rounded-lg cursor-pointer transition-all
                   ${!isCurrentMonth ? "bg-gray-50 opacity-50" : ""}
                   ${isPast ? "bg-gray-100 cursor-not-allowed opacity-50" : ""}
-                  ${isSelected ? "ring-2 ring-blue-500 bg-blue-50" : ""}
-                  ${isHovered && !isPast ? "bg-yellow-50" : ""}
-                  ${isToday(day) ? "border-2 border-blue-400" : "border border-gray-200"}
-                  ${hasData && !isPast ? "hover:bg-green-50" : ""}
+                  ${isSelected ? "ring-2 ring-brand-orange bg-orange-50" : ""}
+                  ${isHovered && !isPast ? "bg-orange-50/50" : ""}
+                  ${isToday(day) ? "border-2 border-brand-orange" : "border border-gray-200"}
+                  ${hasData && !isPast ? "hover:bg-orange-50/30" : ""}
                 `}
                 onMouseEnter={() => !isPast && setHoveredDate(dateStr)}
                 onMouseLeave={() => setHoveredDate(null)}
@@ -155,12 +158,12 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
                 {isCurrentMonth && !isPast && dayData && (
                   <div className="mt-1 space-y-0.5">
                     {dayData.outbound && (
-                      <div className="text-[10px] bg-green-100 text-green-800 rounded px-1 truncate">
+                      <div className="text-[10px] bg-orange-100 text-brand-orange rounded px-1 truncate font-medium">
                         €{dayData.outbound.price.toFixed(0)}
                       </div>
                     )}
                     {dayData.return && (
-                      <div className="text-[10px] bg-blue-100 text-blue-800 rounded px-1 truncate">
+                      <div className="text-[10px] bg-emerald-100 text-brand-green rounded px-1 truncate font-medium">
                         €{dayData.return.price.toFixed(0)}
                       </div>
                     )}
@@ -169,37 +172,57 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
 
                 {/* Hover tooltip */}
                 {isHovered && dayData && !isPast && (
-                  <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg">
+                  <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-gray-900 text-white text-xs rounded-xl p-3 shadow-lg">
                     <div className="font-semibold mb-2">
                       {format(day, "EEEE d MMMM", { locale: es })}
                     </div>
                     {dayData.outbound ? (
                       <div className="mb-2">
-                        <div className="text-green-300 font-medium">Roma → Napoli (07:00)</div>
+                        <div className="text-orange-300 font-medium">Roma → Napoli (07:00)</div>
                         <div>Tren: {dayData.outbound.trainNumber}</div>
                         <div>Clase: {dayData.outbound.class}</div>
-                        <div className="text-lg font-bold text-green-300">
+                        <div className="text-lg font-bold text-orange-300">
                           €{dayData.outbound.price.toFixed(2)}
                         </div>
+                        {dayData.outbound.availableSeats !== null && (
+                          <div className="text-orange-200 text-[10px]">
+                            Billetes clase: {dayData.outbound.availableSeats}
+                          </div>
+                        )}
+                        {dayData.outbound.totalAvailable !== null && (
+                          <div className="text-gray-300 text-[10px]">
+                            Total disponibles: {dayData.outbound.totalAvailable}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-gray-400 mb-2">Sin datos ida</div>
                     )}
                     {dayData.return ? (
                       <div>
-                        <div className="text-blue-300 font-medium">Napoli → Roma (17:00)</div>
+                        <div className="text-emerald-300 font-medium">Napoli → Roma (17:00)</div>
                         <div>Tren: {dayData.return.trainNumber}</div>
                         <div>Clase: {dayData.return.class}</div>
-                        <div className="text-lg font-bold text-blue-300">
+                        <div className="text-lg font-bold text-emerald-300">
                           €{dayData.return.price.toFixed(2)}
                         </div>
+                        {dayData.return.availableSeats !== null && (
+                          <div className="text-emerald-200 text-[10px]">
+                            Billetes clase: {dayData.return.availableSeats}
+                          </div>
+                        )}
+                        {dayData.return.totalAvailable !== null && (
+                          <div className="text-gray-300 text-[10px]">
+                            Total disponibles: {dayData.return.totalAvailable}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-gray-400">Sin datos vuelta</div>
                     )}
                     {dayData.outbound && dayData.return && (
                       <div className="mt-2 pt-2 border-t border-gray-600">
-                        <div className="text-yellow-300 font-bold">
+                        <div className="text-white font-bold">
                           Total: €{(dayData.outbound.price + dayData.return.price).toFixed(2)}
                         </div>
                       </div>
@@ -220,56 +243,83 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
   return (
     <div>
       {/* Navigation */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium"
-        >
-          ← Anterior
-        </button>
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentMonth(subMonths(currentMonth, monthsToShow))}
+            className="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-700 font-medium text-sm"
+          >
+            ← {monthsToShow} meses
+          </button>
+          <button
+            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            className="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-700 font-medium text-sm"
+          >
+            ← 1 mes
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={monthsToShow}
+            onChange={(e) => setMonthsToShow(Number(e.target.value))}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+          >
+            <option value={2}>2 meses</option>
+            <option value={3}>3 meses</option>
+            <option value={4}>4 meses</option>
+            <option value={6}>6 meses</option>
+          </select>
           {selectedDates.size > 0 && (
             <button
               onClick={clearSelection}
-              className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded"
+              className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
             >
-              Limpiar selección ({selectedDates.size})
+              Limpiar ({selectedDates.size})
             </button>
           )}
         </div>
-        <button
-          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium"
-        >
-          Siguiente →
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            className="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-700 font-medium text-sm"
+          >
+            1 mes →
+          </button>
+          <button
+            onClick={() => setCurrentMonth(addMonths(currentMonth, monthsToShow))}
+            className="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-700 font-medium text-sm"
+          >
+            {monthsToShow} meses →
+          </button>
+        </div>
       </div>
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mb-4 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-green-100 rounded"></div>
-          <span>Ida (Roma → Napoli 07:00)</span>
+          <div className="w-4 h-4 bg-orange-100 rounded"></div>
+          <span className="text-gray-600">Ida (Roma → Napoli 07:00)</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-100 rounded"></div>
-          <span>Vuelta (Napoli → Roma 17:00)</span>
+          <div className="w-4 h-4 bg-emerald-100 rounded"></div>
+          <span className="text-gray-600">Vuelta (Napoli → Roma 17:00)</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 ring-2 ring-blue-500 rounded"></div>
-          <span>Seleccionado</span>
+          <div className="w-4 h-4 ring-2 ring-brand-orange rounded"></div>
+          <span className="text-gray-600">Seleccionado</span>
         </div>
       </div>
 
       {loading ? (
         <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-600">Cargando precios...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+          <p className="mt-2 text-gray-500">Cargando precios...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {renderMonth(currentMonth)}
-          {renderMonth(addMonths(currentMonth, 1))}
+        <div className={`grid gap-6 ${monthsToShow <= 2 ? 'grid-cols-1 md:grid-cols-2' : monthsToShow === 3 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+          {Array.from({ length: monthsToShow }, (_, i) =>
+            renderMonth(addMonths(currentMonth, i))
+          )}
         </div>
       )}
     </div>

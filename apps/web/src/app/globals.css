@@ -3,11 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 249, 250, 251;
+  /* Tourmageddon Brand Colors */
+  --brand-orange: #ee682a;
+  --brand-orange-dark: #d55a1f;
+  --brand-green: #2dba7d;
+  --brand-green-dark: #259668;
+
+  /* Backgrounds */
+  --bg-main: #f8f9fa;
+  --bg-card: #ffffff;
+
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+
+  /* Borders */
+  --border-light: #e5e7eb;
+
+  /* Legacy */
+  --foreground-rgb: 17, 24, 39;
+  --background-rgb: 248, 249, 250;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  background: var(--bg-main);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
