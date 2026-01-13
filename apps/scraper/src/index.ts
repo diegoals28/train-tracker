@@ -71,23 +71,52 @@ async function ensureRoutesExist() {
   console.log("Routes initialized");
 }
 
-// Check if a train departure time is within the target window
-// Trenitalia returns times in Italian timezone (CET = UTC+1 in winter, CEST = UTC+2 in summer)
-// We use UTC hours and adjust for Italian time
-function isInTimeWindow(departureTime: Date, targetHour: number): boolean {
-  // Get UTC hours and add 1 for CET (Italian winter time)
-  // In summer it would be +2 for CEST, but for simplicity we use +1
+// Check if a date is in European Summer Time (CEST)
+// DST starts last Sunday of March at 02:00 local time
+// DST ends last Sunday of October at 03:00 local time
+function isEuropeanSummerTime(date: Date): boolean {
+  const year = date.getUTCFullYear();
+
+  // Find last Sunday of March
+  const march31 = new Date(Date.UTC(year, 2, 31));
+  const dstStart = new Date(Date.UTC(year, 2, 31 - march31.getUTCDay(), 1, 0, 0)); // 01:00 UTC = 02:00 CET
+
+  // Find last Sunday of October
+  const oct31 = new Date(Date.UTC(year, 9, 31));
+  const dstEnd = new Date(Date.UTC(year, 9, 31 - oct31.getUTCDay(), 1, 0, 0)); // 01:00 UTC = 02:00 CEST = 03:00 CET
+
+  return date >= dstStart && date < dstEnd;
+}
+
+// Check if a train departure time matches the target schedule
+// Trenitalia returns times in Italian timezone
+// CET (winter) = UTC+1, CEST (summer) = UTC+2
+// For outbound: 07:00 Italian = 06:00 UTC (winter) or 05:00 UTC (summer)
+// For return: 16:55-17:05 Italian = 15:55-16:05 UTC (winter) or 14:55-15:05 UTC (summer)
+function isExactTimeMatch(departureTime: Date, isReturn: boolean): boolean {
   const utcHour = departureTime.getUTCHours();
-  const italianHour = (utcHour + 1) % 24; // Convert UTC to Italian time (CET)
   const minutes = departureTime.getUTCMinutes();
+  const isSummer = isEuropeanSummerTime(departureTime);
 
-  // Wider window: accept trains departing within 30 minutes of target hour
-  // e.g., for targetHour=7: accept 06:30 - 07:30 Italian time
-  // e.g., for targetHour=17: accept 16:30 - 17:30 Italian time
-  if (italianHour === targetHour - 1 && minutes >= 30) return true;
-  if (italianHour === targetHour && minutes <= 30) return true;
-
-  return false;
+  if (isReturn) {
+    // Return: 16:55-17:05 Italian time
+    if (isSummer) {
+      // Summer (CEST): 14:55-15:05 UTC
+      return (utcHour === 14 && minutes >= 55) || (utcHour === 15 && minutes <= 5);
+    } else {
+      // Winter (CET): 15:55-16:05 UTC
+      return (utcHour === 15 && minutes >= 55) || (utcHour === 16 && minutes <= 5);
+    }
+  } else {
+    // Outbound: 07:00 Italian time
+    if (isSummer) {
+      // Summer (CEST): 05:00 UTC
+      return utcHour === 5 && minutes === 0;
+    } else {
+      // Winter (CET): 06:00 UTC
+      return utcHour === 6 && minutes === 0;
+    }
+  }
 }
 
 async function scrapeSpecificSchedules() {
@@ -120,10 +149,10 @@ async function scrapeSpecificSchedules() {
     return;
   }
 
-  // Scrape for the next 30 days
+  // Scrape for the next 120 days
   const today = new Date();
   const dates: Date[] = [];
-  for (let i = 1; i <= 30; i++) {
+  for (let i = 1; i <= 120; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     dates.push(date);
@@ -136,10 +165,11 @@ async function scrapeSpecificSchedules() {
     const dateStr = date.toISOString().split("T")[0];
 
     try {
-      // Scrape OUTBOUND (Roma -> Napoli) starting at 06:00
+      // Scrape OUTBOUND (Roma -> Napoli) starting at 05:00 UTC
+      // This captures 07:00 Italian in both winter (06:00 UTC) and summer (05:00 UTC)
       console.log(`\nScraping outbound for ${dateStr}...`);
       const outboundDate = new Date(date);
-      outboundDate.setHours(6, 0, 0, 0); // Start search at 06:00
+      outboundDate.setUTCHours(5, 0, 0, 0);
 
       const outboundResults = await scrapeTrenitalia(
         TRENITALIA_STATIONS[SCHEDULE_CONFIG.outbound.origin],
@@ -147,9 +177,9 @@ async function scrapeSpecificSchedules() {
         outboundDate
       );
 
-      // Filter and save only trains around 07:00
+      // Filter and save ONLY trains at exactly 07:00 (06:00 UTC)
       for (const train of outboundResults) {
-        if (isInTimeWindow(train.departureTime, SCHEDULE_CONFIG.outbound.departureHour)) {
+        if (isExactTimeMatch(train.departureTime, false)) {
           for (const price of train.prices) {
             await db.price.create({
               data: {
@@ -160,30 +190,57 @@ async function scrapeSpecificSchedules() {
                 price: price.price,
                 class: price.class,
                 duration: train.duration,
+                availableSeats: price.availableSeats,
+                totalAvailable: train.totalAvailable,
               },
             });
             savedOutbound++;
           }
-          console.log(`  Saved: ${train.trainNumber} at ${train.departureTime.toISOString()}`);
+          console.log(`  Saved: ${train.trainNumber} at ${train.departureTime.toISOString()} (seats: ${train.totalAvailable ?? 'N/A'})`);
         }
       }
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // Scrape RETURN (Napoli -> Roma) starting at 16:00
+      // Scrape RETURN (Napoli -> Roma) - make TWO queries to cover both seasons
+      // Summer (CEST): 16:55-17:05 Italian = 14:55-15:05 UTC - query at 14:30 UTC
+      // Winter (CET): 16:55-17:05 Italian = 15:55-16:05 UTC - query at 15:30 UTC
       console.log(`Scraping return for ${dateStr}...`);
-      const returnDate = new Date(date);
-      returnDate.setHours(16, 0, 0, 0); // Start search at 16:00
 
-      const returnResults = await scrapeTrenitalia(
+      // Query 1: For summer time (14:30 UTC to catch 14:55-15:05 UTC)
+      const returnDateSummer = new Date(date);
+      returnDateSummer.setUTCHours(14, 30, 0, 0);
+
+      const returnResultsSummer = await scrapeTrenitalia(
         TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.origin],
         TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.destination],
-        returnDate
+        returnDateSummer
       );
 
-      // Filter and save only trains around 17:00
-      for (const train of returnResults) {
-        if (isInTimeWindow(train.departureTime, SCHEDULE_CONFIG.return.departureHour)) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Query 2: For winter time (15:30 UTC to catch 15:55-16:05 UTC)
+      const returnDateWinter = new Date(date);
+      returnDateWinter.setUTCHours(15, 30, 0, 0);
+
+      const returnResultsWinter = await scrapeTrenitalia(
+        TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.origin],
+        TRENITALIA_STATIONS[SCHEDULE_CONFIG.return.destination],
+        returnDateWinter
+      );
+
+      // Combine results and deduplicate by train number + departure time
+      const seenTrains = new Set<string>();
+      const allReturnResults = [...returnResultsSummer, ...returnResultsWinter].filter(train => {
+        const key = `${train.trainNumber}-${train.departureTime.toISOString()}`;
+        if (seenTrains.has(key)) return false;
+        seenTrains.add(key);
+        return true;
+      });
+
+      // Filter and save ONLY trains at 16:55-17:05 Italian time
+      for (const train of allReturnResults) {
+        if (isExactTimeMatch(train.departureTime, true)) {
           for (const price of train.prices) {
             await db.price.create({
               data: {
@@ -194,11 +251,13 @@ async function scrapeSpecificSchedules() {
                 price: price.price,
                 class: price.class,
                 duration: train.duration,
+                availableSeats: price.availableSeats,
+                totalAvailable: train.totalAvailable,
               },
             });
             savedReturn++;
           }
-          console.log(`  Saved: ${train.trainNumber} at ${train.departureTime.toISOString()}`);
+          console.log(`  Saved: ${train.trainNumber} at ${train.departureTime.toISOString()} (seats: ${train.totalAvailable ?? 'N/A'})`);
         }
       }
 
