@@ -8,9 +8,9 @@ export async function GET(request: NextRequest) {
 
   const url = "https://www.lefrecce.it/Channels.Website.BFF.WEB/website/ticket/solutions";
 
-  // Roma Termini -> Napoli Centrale, 07:00
+  // Roma Termini -> Napoli Centrale, 07:00 Italian = 06:00 UTC in winter
   const departureTime = new Date(date);
-  departureTime.setUTCHours(6, 0, 0, 0);
+  departureTime.setUTCHours(5, 30, 0, 0); // Search a bit earlier to find 07:00 train
 
   const body = {
     departureLocationId: 830008409,
@@ -44,12 +44,19 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    // Extract offer names from the first solution
-    const firstSolution = data.solutions?.[0];
+    // Find the 07:00 train (06:00 UTC in winter)
+    const targetSolution = data.solutions?.find((sol: any) => {
+      const depTime = new Date(sol.solution.departureTime);
+      const hour = depTime.getUTCHours();
+      const min = depTime.getUTCMinutes();
+      return hour === 6 && min === 0; // 07:00 Italian = 06:00 UTC in winter
+    });
+
+    const solutionToUse = targetSolution || data.solutions?.[0];
     const offerInfo: any[] = [];
 
-    if (firstSolution) {
-      for (const grid of firstSolution.grids || []) {
+    if (solutionToUse) {
+      for (const grid of solutionToUse.grids || []) {
         for (const service of grid.services || []) {
           const serviceData = {
             serviceName: service.name,
@@ -58,6 +65,7 @@ export async function GET(request: NextRequest) {
               serviceName: o.serviceName,
               price: o.price?.amount,
               status: o.status,
+              available: o.availableAmount,
             })),
           };
           offerInfo.push(serviceData);
@@ -67,8 +75,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       date,
-      trainNumber: firstSolution?.solution?.trains?.[0]?.name,
-      departureTime: firstSolution?.solution?.departureTime,
+      found07Train: !!targetSolution,
+      trainNumber: solutionToUse?.solution?.trains?.[0]?.name,
+      departureTime: solutionToUse?.solution?.departureTime,
       services: offerInfo,
     });
   } catch (error) {
