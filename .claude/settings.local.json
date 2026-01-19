@@ -50,7 +50,8 @@
       "Bash(\"C:\\\\Users\\\\info\\\\train-tracker\\\\apps\\\\web\\\\.env.local\")",
       "Bash(npx dotenv:*)",
       "Bash(set DATABASE_URL=postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway)",
-      "Bash(timeout 30 powershell:*)"
+      "Bash(timeout 30 powershell:*)",
+      "Bash(python3:*)"
     ]
   }
 }

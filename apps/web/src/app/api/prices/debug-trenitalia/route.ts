@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
   let destId: number;
 
   if (direction === "return") {
-    // Napoli -> Roma, 17:00 Italian = 16:00 UTC in winter
-    departureTime.setUTCHours(15, 30, 0, 0);
+    // Napoli -> Roma, search from 16:00 Italian = 15:00 UTC in winter
+    departureTime.setUTCHours(15, 0, 0, 0);
     originId = 830009218; // Napoli
     destId = 830008409; // Roma
   } else {
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       regionalOnly: false,
       noChanges: false,
       order: "DEPARTURE_DATE",
-      limit: 5,
+      limit: 30,
       offset: 0,
     },
     advancedSearchRequest: {
