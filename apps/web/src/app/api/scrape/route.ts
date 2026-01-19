@@ -88,6 +88,12 @@ async function scrapeTrenitalia(
       const prices: { class: string; price: number; availableSeats: number | null }[] = [];
       let totalAvailable = 0;
 
+      // Helper to check if offer name indicates youth-only fare
+      const isYouthFare = (name: string): boolean => {
+        const lower = (name || "").toLowerCase();
+        return lower.includes("young") || lower.includes("giovani") || lower.includes("youth");
+      };
+
       for (const grid of sol.grids || []) {
         for (const service of (grid as any).services || []) {
           const offers = (service as any).offers || [];
@@ -97,6 +103,12 @@ async function scrapeTrenitalia(
           for (const offer of offers) {
             const available = offer.availableAmount || 0;
             serviceAvailable += available;
+
+            // Skip FrecciaYoung offers by checking offer name
+            const offerName = offer.name || offer.serviceName || "";
+            if (isYouthFare(offerName)) {
+              continue;
+            }
 
             if (
               offer.status === "SALEABLE" &&
@@ -114,10 +126,9 @@ async function scrapeTrenitalia(
 
           totalAvailable += serviceAvailable;
 
-          // Skip FrecciaYoung and other youth-only offers
+          // Skip FrecciaYoung and other youth-only services
           const serviceName = service.name || "Standard";
-          const lowerName = serviceName.toLowerCase();
-          if (lowerName.includes("young") || lowerName.includes("giovani") || lowerName.includes("youth")) {
+          if (isYouthFare(serviceName)) {
             continue;
           }
 

@@ -33,3 +33,6 @@ packages/database/prisma/*.db-journal
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+.vercel
+.env*.local

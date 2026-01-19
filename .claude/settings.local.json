@@ -28,7 +28,29 @@
       "WebFetch(domain:train-tracker-diegoals28.vercel.app)",
       "WebFetch(domain:train-tracker-web.vercel.app)",
       "Bash(pnpm add:*)",
-      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" node:*)"
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" node:*)",
+      "Bash(pnpm --filter @train-tracker/scraper build:*)",
+      "Bash(node:*)",
+      "Bash(pnpm dev)",
+      "Bash(export DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\":*)",
+      "Bash(export RUN_ON_START=true)",
+      "Bash(while read line)",
+      "Bash(do echo \"$line\")",
+      "Bash(if echo \"$line\")",
+      "Bash(then pkill -f \"tail -f\")",
+      "Bash(break)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(npx prisma db push:*)",
+      "Bash(set DATABASE_URL=postgresql://postgres:nico@localhost:5432/train_prices)",
+      "Bash(cmd /c \"set DATABASE_URL=postgresql://postgres:nico@localhost:5432/train_prices && npx prisma db push --force-reset\")",
+      "Bash(DATABASE_URL=postgresql://postgres:nico@localhost:5432/train_prices node:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway\" RUN_ON_START=true node:*)",
+      "Bash(set /p=\"\")",
+      "Bash(\"C:\\\\Users\\\\info\\\\train-tracker\\\\apps\\\\web\\\\.env.local\")",
+      "Bash(npx dotenv:*)",
+      "Bash(set DATABASE_URL=postgresql://postgres:SUZPWBCyGaulLsYtyWRdQxaTnbGERqpO@turntable.proxy.rlwy.net:32455/railway)",
+      "Bash(timeout 30 powershell:*)"
     ]
   }
 }

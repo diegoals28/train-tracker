@@ -49,12 +49,13 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [monthsToShow, setMonthsToShow] = useState(2);
+  const [monthsToShow, setMonthsToShow] = useState(3);
 
   const fetchCalendarData = useCallback(async () => {
     setLoading(true);
     const start = startOfMonth(currentMonth);
-    const end = endOfMonth(addMonths(currentMonth, monthsToShow - 1)); // Fetch based on monthsToShow
+    // Fetch all available data (12 months ahead) regardless of visible months
+    const end = endOfMonth(addMonths(currentMonth, 11));
 
     try {
       const response = await fetch(
@@ -67,7 +68,7 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, monthsToShow]);
+  }, [currentMonth]);
 
   useEffect(() => {
     fetchCalendarData();
