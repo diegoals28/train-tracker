@@ -1,0 +1,295 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // 60 seconds max for Vercel Pro
+
+const TRENITALIA_STATIONS = {
+  ROMA_TERMINI: 830008409,
+  NAPOLI_CENTRALE: 830009218,
+};
+
+interface TrenitaliaResult {
+  trainNumber: string;
+  trainType: string;
+  departureTime: Date;
+  arrivalTime: Date;
+  duration: number;
+  prices: { class: string; price: number; availableSeats: number | null }[];
+  totalAvailable: number | null;
+}
+
+function parseDuration(duration: string): number {
+  const newFormatMatch = duration.match(/(\d+)h\s*(\d+)?min?/i);
+  if (newFormatMatch) {
+    const hours = parseInt(newFormatMatch[1]) || 0;
+    const minutes = parseInt(newFormatMatch[2]) || 0;
+    return hours * 60 + minutes;
+  }
+  const hours = duration.match(/(\d+)H/)?.[1] || "0";
+  const minutes = duration.match(/(\d+)M/)?.[1] || "0";
+  return parseInt(hours) * 60 + parseInt(minutes);
+}
+
+// Helper to check if offer name indicates youth-only fare
+const isYouthFare = (name: string): boolean => {
+  const lower = (name || "").toLowerCase();
+  return lower.includes("young") || lower.includes("giovani") || lower.includes("youth") || lower.includes("senior");
+};
+
+async function scrapeTrenitalia(
+  originCode: number,
+  destCode: number,
+  date: Date
+): Promise<TrenitaliaResult[]> {
+  const url = "https://www.lefrecce.it/Channels.Website.BFF.WEB/website/ticket/solutions";
+
+  const body = {
+    departureLocationId: originCode,
+    arrivalLocationId: destCode,
+    departureTime: date.toISOString(),
+    adults: 1,
+    children: 0,
+    criteria: {
+      frecceOnly: false,
+      regionalOnly: false,
+      noChanges: false,
+      order: "DEPARTURE_DATE",
+      limit: 20,
+      offset: 0,
+    },
+    advancedSearchRequest: {
+      bestFare: false,
+    },
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": "Mozilla/5.0",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    const results: TrenitaliaResult[] = [];
+
+    for (const sol of (data as any).solutions || []) {
+      const train = sol.solution.trains?.[0];
+      if (!train) continue;
+
+      const prices: { class: string; price: number; availableSeats: number | null }[] = [];
+      let totalAvailable = 0;
+
+      for (const grid of sol.grids || []) {
+        for (const service of (grid as any).services || []) {
+          const offers = (service as any).offers || [];
+          let cheapestOffer: any = null;
+          let serviceAvailable = 0;
+
+          for (const offer of offers) {
+            const available = offer.availableAmount || 0;
+            serviceAvailable += available;
+
+            // Skip YOUNG and SENIOR offers
+            const offerName = offer.name || "";
+            if (isYouthFare(offerName)) {
+              continue;
+            }
+
+            if (offer.status === "SALEABLE" && offer.price?.amount && available > 0) {
+              if (!cheapestOffer || offer.price.amount < cheapestOffer.price.amount) {
+                cheapestOffer = offer;
+              }
+            }
+          }
+
+          totalAvailable += serviceAvailable;
+
+          const serviceName = service.name || "Standard";
+          if (isYouthFare(serviceName)) continue;
+
+          if (cheapestOffer) {
+            prices.push({
+              class: serviceName,
+              price: cheapestOffer.price.amount,
+              availableSeats: cheapestOffer.availableAmount || null,
+            });
+          }
+        }
+      }
+
+      if (prices.length > 0) {
+        results.push({
+          trainNumber: train.name || train.acronym || "N/A",
+          trainType: train.denomination || train.trainCategory || "Trenitalia",
+          departureTime: new Date(sol.solution.departureTime),
+          arrivalTime: new Date(sol.solution.arrivalTime),
+          duration: parseDuration(sol.solution.duration || "0min"),
+          prices,
+          totalAvailable: totalAvailable > 0 ? totalAvailable : null,
+        });
+      }
+    }
+
+    return results;
+  } catch (error) {
+    console.error("Scrape error:", error);
+    return [];
+  }
+}
+
+function isEuropeanSummerTime(date: Date): boolean {
+  const year = date.getUTCFullYear();
+  const march31 = new Date(Date.UTC(year, 2, 31));
+  const dstStart = new Date(Date.UTC(year, 2, 31 - march31.getUTCDay(), 1, 0, 0));
+  const oct31 = new Date(Date.UTC(year, 9, 31));
+  const dstEnd = new Date(Date.UTC(year, 9, 31 - oct31.getUTCDay(), 1, 0, 0));
+  return date >= dstStart && date < dstEnd;
+}
+
+function isExactTimeMatch(departureTime: Date, isReturn: boolean): boolean {
+  const utcHour = departureTime.getUTCHours();
+  const minutes = departureTime.getUTCMinutes();
+  const isSummer = isEuropeanSummerTime(departureTime);
+
+  if (isReturn) {
+    if (isSummer) {
+      return (utcHour === 14 && minutes >= 55) || (utcHour === 15 && minutes <= 5);
+    } else {
+      return (utcHour === 15 && minutes >= 55) || (utcHour === 16 && minutes <= 5);
+    }
+  } else {
+    if (isSummer) {
+      return utcHour === 5 && minutes === 0;
+    } else {
+      return utcHour === 6 && minutes === 0;
+    }
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const dateStr = body.date; // Expected format: "2026-02-04"
+
+    if (!dateStr) {
+      return NextResponse.json({ error: "date parameter required" }, { status: 400 });
+    }
+
+    const outboundRoute = await db.route.findFirst({
+      where: {
+        origin: String(TRENITALIA_STATIONS.ROMA_TERMINI),
+        destination: String(TRENITALIA_STATIONS.NAPOLI_CENTRALE),
+        provider: "TRENITALIA",
+        active: true,
+      },
+    });
+
+    const returnRoute = await db.route.findFirst({
+      where: {
+        origin: String(TRENITALIA_STATIONS.NAPOLI_CENTRALE),
+        destination: String(TRENITALIA_STATIONS.ROMA_TERMINI),
+        provider: "TRENITALIA",
+        active: true,
+      },
+    });
+
+    if (!outboundRoute || !returnRoute) {
+      return NextResponse.json({ error: "Routes not found" }, { status: 500 });
+    }
+
+    const date = new Date(dateStr);
+
+    // Delete old prices for this date
+    const startOfDay = new Date(dateStr);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateStr);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    await db.price.deleteMany({
+      where: {
+        routeId: { in: [outboundRoute.id, returnRoute.id] },
+        departureAt: { gte: startOfDay, lte: endOfDay },
+      },
+    });
+
+    let savedOutbound = 0;
+    let savedReturn = 0;
+
+    // Scrape outbound
+    const outboundDate = new Date(date);
+    outboundDate.setUTCHours(5, 0, 0, 0);
+    const outboundResults = await scrapeTrenitalia(
+      TRENITALIA_STATIONS.ROMA_TERMINI,
+      TRENITALIA_STATIONS.NAPOLI_CENTRALE,
+      outboundDate
+    );
+
+    for (const train of outboundResults) {
+      if (isExactTimeMatch(train.departureTime, false)) {
+        for (const price of train.prices) {
+          await db.price.create({
+            data: {
+              routeId: outboundRoute.id,
+              departureAt: train.departureTime,
+              trainNumber: train.trainNumber,
+              trainType: train.trainType,
+              price: price.price,
+              class: price.class,
+              duration: train.duration,
+              availableSeats: price.availableSeats,
+              totalAvailable: train.totalAvailable,
+            },
+          });
+          savedOutbound++;
+        }
+      }
+    }
+
+    // Scrape return
+    const returnDate = new Date(date);
+    returnDate.setUTCHours(15, 0, 0, 0);
+    const returnResults = await scrapeTrenitalia(
+      TRENITALIA_STATIONS.NAPOLI_CENTRALE,
+      TRENITALIA_STATIONS.ROMA_TERMINI,
+      returnDate
+    );
+
+    for (const train of returnResults) {
+      if (isExactTimeMatch(train.departureTime, true)) {
+        for (const price of train.prices) {
+          await db.price.create({
+            data: {
+              routeId: returnRoute.id,
+              departureAt: train.departureTime,
+              trainNumber: train.trainNumber,
+              trainType: train.trainType,
+              price: price.price,
+              class: price.class,
+              duration: train.duration,
+              availableSeats: price.availableSeats,
+              totalAvailable: train.totalAvailable,
+            },
+          });
+          savedReturn++;
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      date: dateStr,
+      savedOutbound,
+      savedReturn,
+    });
+  } catch (error) {
+    console.error("Scrape day error:", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
