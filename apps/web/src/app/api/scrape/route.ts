@@ -195,10 +195,13 @@ function isExactTimeMatch(departureTime: Date, isReturn: boolean): boolean {
   const isSummer = isEuropeanSummerTime(departureTime);
 
   if (isReturn) {
+    // Accept trains between 16:30-17:05 Italian time
     if (isSummer) {
-      return (utcHour === 14 && minutes >= 55) || (utcHour === 15 && minutes <= 5);
+      // Summer: 16:30-17:05 Italian = 14:30-15:05 UTC
+      return (utcHour === 14 && minutes >= 30) || (utcHour === 15 && minutes <= 5);
     } else {
-      return (utcHour === 15 && minutes >= 55) || (utcHour === 16 && minutes <= 5);
+      // Winter: 16:30-17:05 Italian = 15:30-16:05 UTC
+      return (utcHour === 15 && minutes >= 30) || (utcHour === 16 && minutes <= 5);
     }
   } else {
     if (isSummer) {

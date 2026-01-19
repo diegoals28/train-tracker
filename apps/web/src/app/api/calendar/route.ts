@@ -123,12 +123,13 @@ export async function GET(request: NextRequest) {
       const minutes = departure.getUTCMinutes();
       const isSummer = isEuropeanSummerTime(departure);
 
+      // Accept trains between 16:30-17:05 Italian time
       if (isSummer) {
-        // Summer (CEST): 16:55-17:05 Italian = 14:55-15:05 UTC
-        return (hour === 14 && minutes >= 55) || (hour === 15 && minutes <= 5);
+        // Summer (CEST): 16:30-17:05 Italian = 14:30-15:05 UTC
+        return (hour === 14 && minutes >= 30) || (hour === 15 && minutes <= 5);
       } else {
-        // Winter (CET): 16:55-17:05 Italian = 15:55-16:05 UTC
-        return (hour === 15 && minutes >= 55) || (hour === 16 && minutes <= 5);
+        // Winter (CET): 16:30-17:05 Italian = 15:30-16:05 UTC
+        return (hour === 15 && minutes >= 30) || (hour === 16 && minutes <= 5);
       }
     };
 
