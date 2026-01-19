@@ -114,9 +114,10 @@ async function scrapeTrenitalia(
 
           totalAvailable += serviceAvailable;
 
-          // Skip FrecciaYoung offers (youth-only fares)
+          // Skip FrecciaYoung and other youth-only offers
           const serviceName = service.name || "Standard";
-          if (serviceName.toLowerCase().includes("young")) {
+          const lowerName = serviceName.toLowerCase();
+          if (lowerName.includes("young") || lowerName.includes("giovani") || lowerName.includes("youth")) {
             continue;
           }
 

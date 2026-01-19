@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 
 export function RefreshPrices() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -17,6 +18,32 @@ export function RefreshPrices() {
       })
       .catch(() => {});
   }, []);
+
+  const handleCleanupYoung = async () => {
+    if (isCleaning) return;
+
+    setIsCleaning(true);
+    setMessage("Limpiando FrecciaYoung...");
+
+    try {
+      const response = await fetch("/api/prices/cleanup-young", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage(`Eliminados ${data.deleted} precios Young`);
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        setMessage(`Error: ${data.error || "Error"}`);
+      }
+    } catch (error) {
+      setMessage("Error de conexión");
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   const handleRefresh = async () => {
     if (isRefreshing) return;
@@ -87,15 +114,16 @@ export function RefreshPrices() {
           )}
         </div>
         <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
+          onClick={handleCleanupYoung}
+          disabled={isCleaning || isRefreshing}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
-            isRefreshing
+            isCleaning || isRefreshing
               ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-              : "bg-blue-600 text-white hover:bg-blue-700"
+              : "bg-red-600 text-white hover:bg-red-700"
           }`}
+          title="Eliminar tarifas FrecciaYoung de la base de datos"
         >
-          {isRefreshing ? "..." : "Actualizar"}
+          {isCleaning ? "..." : "Limpiar Young"}
         </button>
       </div>
     </div>
