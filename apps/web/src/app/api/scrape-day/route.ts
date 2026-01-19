@@ -92,6 +92,7 @@ async function scrapeTrenitalia(
           let cheapestOffer: any = null;
           let serviceAvailable = 0;
 
+          const skippedOffers: string[] = [];
           for (const offer of offers) {
             const available = offer.availableAmount || 0;
             serviceAvailable += available;
@@ -99,6 +100,7 @@ async function scrapeTrenitalia(
             // Skip YOUNG and SENIOR offers
             const offerName = offer.name || "";
             if (isYouthFare(offerName)) {
+              skippedOffers.push(`${offerName}:${offer.price?.amount}`);
               continue;
             }
 
@@ -107,6 +109,9 @@ async function scrapeTrenitalia(
                 cheapestOffer = offer;
               }
             }
+          }
+          if (skippedOffers.length > 0) {
+            console.log(`Skipped offers for ${service.name}:`, skippedOffers);
           }
 
           totalAvailable += serviceAvailable;
@@ -221,6 +226,7 @@ export async function POST(request: NextRequest) {
 
     let savedOutbound = 0;
     let savedReturn = 0;
+    const savedPrices: { class: string; price: number }[] = [];
 
     // Scrape outbound
     const outboundDate = new Date(date);
@@ -248,6 +254,7 @@ export async function POST(request: NextRequest) {
             },
           });
           savedOutbound++;
+          savedPrices.push({ class: price.class, price: price.price });
         }
       }
     }
@@ -287,6 +294,8 @@ export async function POST(request: NextRequest) {
       date: dateStr,
       savedOutbound,
       savedReturn,
+      savedPrices,
+      version: "v2-filter-frecciayoung",
     });
   } catch (error) {
     console.error("Scrape day error:", error);
