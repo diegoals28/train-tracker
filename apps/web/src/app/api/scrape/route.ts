@@ -88,10 +88,10 @@ async function scrapeTrenitalia(
       const prices: { class: string; price: number; availableSeats: number | null }[] = [];
       let totalAvailable = 0;
 
-      // Helper to check if offer name indicates youth-only fare
-      const isYouthFare = (name: string): boolean => {
+      // Helper to check if offer is age-restricted (youth or senior)
+      const isAgeRestrictedFare = (name: string): boolean => {
         const lower = (name || "").toLowerCase();
-        return lower.includes("young") || lower.includes("giovani") || lower.includes("youth");
+        return lower.includes("young") || lower.includes("giovani") || lower.includes("youth") || lower.includes("senior");
       };
 
       for (const grid of sol.grids || []) {
@@ -106,7 +106,7 @@ async function scrapeTrenitalia(
 
             // Skip FrecciaYoung offers by checking offer name
             const offerName = offer.name || offer.serviceName || "";
-            if (isYouthFare(offerName)) {
+            if (isAgeRestrictedFare(offerName)) {
               continue;
             }
 
@@ -128,7 +128,7 @@ async function scrapeTrenitalia(
 
           // Skip FrecciaYoung and other youth-only services
           const serviceName = service.name || "Standard";
-          if (isYouthFare(serviceName)) {
+          if (isAgeRestrictedFare(serviceName)) {
             continue;
           }
 

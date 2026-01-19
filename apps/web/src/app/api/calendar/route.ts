@@ -132,16 +132,16 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    // Helper to check if a fare is youth-only (FrecciaYoung, etc.)
-    const isYouthOnlyFare = (className: string): boolean => {
+    // Helper to check if a fare is age-restricted (youth or senior)
+    const isAgeRestrictedFare = (className: string): boolean => {
       const lower = className.toLowerCase();
-      return lower.includes("young") || lower.includes("giovani") || lower.includes("youth");
+      return lower.includes("young") || lower.includes("giovani") || lower.includes("youth") || lower.includes("senior");
     };
 
     // Process outbound (ONLY 07:00 Italian time = 06:00 UTC)
     for (const price of outboundPrices) {
       // Skip FrecciaYoung and other youth-only offers
-      if (isYouthOnlyFare(price.class)) {
+      if (isAgeRestrictedFare(price.class)) {
         continue;
       }
 
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
     // Process return (ONLY 17:00 or 17:05 Italian time = 16:00 or 16:05 UTC)
     for (const price of returnPrices) {
       // Skip FrecciaYoung and other youth-only offers
-      if (isYouthOnlyFare(price.class)) {
+      if (isAgeRestrictedFare(price.class)) {
         continue;
       }
 
