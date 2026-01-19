@@ -135,8 +135,8 @@ export function HistoryDownload() {
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="bg-emerald-50 p-2 rounded-lg">
+      <div className="flex items-center gap-3">
+        <div className="bg-emerald-50 p-2 rounded-lg flex-shrink-0">
           <svg
             className="w-6 h-6 text-brand-green"
             fill="none"
@@ -151,55 +151,25 @@ export function HistoryDownload() {
             />
           </svg>
         </div>
-        <div>
-          <p className="text-sm text-gray-500">Histórico de Precios</p>
-          <p className="text-xs text-gray-400">
-            Descarga la evolución de precios
-          </p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-500">Histórico</p>
+          <select
+            value={daysAhead}
+            onChange={(e) => setDaysAhead(Number(e.target.value))}
+            className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-green"
+          >
+            <option value={7}>7 días</option>
+            <option value={14}>14 días</option>
+            <option value={30}>30 días</option>
+            <option value={60}>60 días</option>
+          </select>
         </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <select
-          value={daysAhead}
-          onChange={(e) => setDaysAhead(Number(e.target.value))}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
-        >
-          <option value={7}>Próximos 7 días</option>
-          <option value={14}>Próximos 14 días</option>
-          <option value={30}>Próximos 30 días</option>
-          <option value={60}>Próximos 60 días</option>
-          <option value={90}>Próximos 90 días</option>
-        </select>
-
         <button
           onClick={downloadHistory}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-green hover:bg-brand-green-dark disabled:opacity-50 text-white rounded-lg font-medium transition-colors text-sm"
+          className="px-3 py-1.5 bg-brand-green hover:bg-brand-green-dark disabled:opacity-50 text-white rounded-lg font-medium transition-colors text-xs flex-shrink-0"
         >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Descargando...
-            </>
-          ) : (
-            <>
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              Descargar Excel
-            </>
-          )}
+          {loading ? "..." : "Excel"}
         </button>
       </div>
     </div>
