@@ -134,6 +134,11 @@ export async function GET(request: NextRequest) {
 
     // Process outbound (ONLY 07:00 Italian time = 06:00 UTC)
     for (const price of outboundPrices) {
+      // Skip FrecciaYoung offers (youth-only fares)
+      if (price.class.toLowerCase().includes("young")) {
+        continue;
+      }
+
       const departure = new Date(price.departureAt);
 
       if (isExactOutboundTime(departure)) {
@@ -159,6 +164,11 @@ export async function GET(request: NextRequest) {
 
     // Process return (ONLY 17:00 or 17:05 Italian time = 16:00 or 16:05 UTC)
     for (const price of returnPrices) {
+      // Skip FrecciaYoung offers (youth-only fares)
+      if (price.class.toLowerCase().includes("young")) {
+        continue;
+      }
+
       const departure = new Date(price.departureAt);
 
       if (isExactReturnTime(departure)) {

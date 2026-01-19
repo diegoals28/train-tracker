@@ -9,7 +9,9 @@ export interface TrenitaliaResult {
   prices: {
     class: string;
     price: number;
+    availableSeats: number | null;
   }[];
+  totalAvailable: number | null; // Total seats across all classes
 }
 
 interface TrenitaliaOffer {
@@ -152,16 +154,50 @@ export async function scrapeTrenitalia(
       const train = sol.solution.trains?.[0];
       if (!train) continue;
 
-      const prices: { class: string; price: number }[] = [];
+      const prices: { class: string; price: number; availableSeats: number | null }[] = [];
+      let totalAvailable = 0;
 
-      // Extract prices from grids -> services -> offers
+      // Extract prices and availability from grids -> services -> offers
       for (const grid of sol.grids || []) {
-        for (const service of grid.services || []) {
-          // Get the minimum price for each service class
-          if (service.minPrice?.amount) {
+        for (const service of (grid as any).services || []) {
+          // Find the cheapest available offer for each service class
+          const offers = (service as any).offers || [];
+          let cheapestOffer: any = null;
+          let serviceAvailable = 0;
+
+          for (const offer of offers) {
+            const available = offer.availableAmount || 0;
+            serviceAvailable += available;
+
+            // Only consider offers that are available (SALEABLE status and have seats)
+            if (offer.status === "SALEABLE" && offer.price?.amount && available > 0) {
+              if (!cheapestOffer || offer.price.amount < cheapestOffer.price.amount) {
+                cheapestOffer = offer;
+              }
+            }
+          }
+
+          totalAvailable += serviceAvailable;
+
+          // Skip FrecciaYoung offers (youth-only fares)
+          const serviceName = service.name || "Standard";
+          if (serviceName.toLowerCase().includes("young")) {
+            continue;
+          }
+
+          // Use cheapest available offer, or minPrice as fallback
+          if (cheapestOffer) {
             prices.push({
-              class: service.name || "Standard",
+              class: serviceName,
+              price: cheapestOffer.price.amount,
+              availableSeats: cheapestOffer.availableAmount || null,
+            });
+          } else if (service.minPrice?.amount) {
+            // Fallback to minPrice if no specific offer found
+            prices.push({
+              class: serviceName,
               price: service.minPrice.amount,
+              availableSeats: null,
             });
           }
         }
@@ -172,6 +208,7 @@ export async function scrapeTrenitalia(
         prices.push({
           class: "Standard",
           price: sol.solution.price.amount,
+          availableSeats: null,
         });
       }
 
@@ -183,6 +220,7 @@ export async function scrapeTrenitalia(
           arrivalTime: new Date(sol.solution.arrivalTime),
           duration: parseDuration(sol.solution.duration || "0min"),
           prices,
+          totalAvailable: totalAvailable > 0 ? totalAvailable : null,
         });
       }
     }
