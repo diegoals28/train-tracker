@@ -5,16 +5,30 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const date = searchParams.get("date") || "2026-02-04";
+  const direction = searchParams.get("direction") || "outbound"; // outbound or return
 
   const url = "https://www.lefrecce.it/Channels.Website.BFF.WEB/website/ticket/solutions";
 
-  // Roma Termini -> Napoli Centrale, 07:00 Italian = 06:00 UTC in winter
   const departureTime = new Date(date);
-  departureTime.setUTCHours(5, 30, 0, 0); // Search a bit earlier to find 07:00 train
+
+  let originId: number;
+  let destId: number;
+
+  if (direction === "return") {
+    // Napoli -> Roma, 17:00 Italian = 16:00 UTC in winter
+    departureTime.setUTCHours(15, 30, 0, 0);
+    originId = 830009218; // Napoli
+    destId = 830008409; // Roma
+  } else {
+    // Roma -> Napoli, 07:00 Italian = 06:00 UTC in winter
+    departureTime.setUTCHours(5, 30, 0, 0);
+    originId = 830008409; // Roma
+    destId = 830009218; // Napoli
+  }
 
   const body = {
-    departureLocationId: 830008409,
-    arrivalLocationId: 830009218,
+    departureLocationId: originId,
+    arrivalLocationId: destId,
     departureTime: departureTime.toISOString(),
     adults: 1,
     children: 0,
@@ -44,12 +58,18 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    // Find the 07:00 train (06:00 UTC in winter)
+    // Find the target train based on direction
     const targetSolution = data.solutions?.find((sol: any) => {
       const depTime = new Date(sol.solution.departureTime);
       const hour = depTime.getUTCHours();
       const min = depTime.getUTCMinutes();
-      return hour === 6 && min === 0; // 07:00 Italian = 06:00 UTC in winter
+      if (direction === "return") {
+        // 17:00 Italian = 16:00 UTC in winter
+        return hour === 16 && min === 0;
+      } else {
+        // 07:00 Italian = 06:00 UTC in winter
+        return hour === 6 && min === 0;
+      }
     });
 
     const solutionToUse = targetSolution || data.solutions?.[0];
@@ -73,12 +93,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // List all available departure times
+    const allDepartures = (data.solutions || []).map((sol: any) => ({
+      trainNumber: sol.solution?.trains?.[0]?.name,
+      departureTime: sol.solution?.departureTime,
+      utcHour: new Date(sol.solution?.departureTime).getUTCHours(),
+      utcMin: new Date(sol.solution?.departureTime).getUTCMinutes(),
+    }));
+
     return NextResponse.json({
       date,
-      found07Train: !!targetSolution,
+      direction,
+      foundTargetTrain: !!targetSolution,
       trainNumber: solutionToUse?.solution?.trains?.[0]?.name,
       departureTime: solutionToUse?.solution?.departureTime,
       services: offerInfo,
+      allDepartures,
     });
   } catch (error) {
     return NextResponse.json(
