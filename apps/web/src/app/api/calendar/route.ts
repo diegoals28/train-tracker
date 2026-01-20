@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     // Check if departure matches the target times (DST-aware)
     // Outbound: 07:00 Italian = 06:00 UTC (winter) or 05:00 UTC (summer)
-    // Return: 16:55-17:05 Italian = 15:55-16:05 UTC (winter) or 14:55-15:05 UTC (summer)
+    // Return: 16:55, 17:00, 17:05 Italian = 15:55, 16:00, 16:05 UTC (winter) or 14:55, 15:00, 15:05 UTC (summer)
     const isExactOutboundTime = (departure: Date): boolean => {
       const hour = departure.getUTCHours();
       const minutes = departure.getUTCMinutes();
@@ -123,13 +123,15 @@ export async function GET(request: NextRequest) {
       const minutes = departure.getUTCMinutes();
       const isSummer = isEuropeanSummerTime(departure);
 
-      // Accept trains between 16:30-17:05 Italian time
+      // Return: ONLY 16:55, 17:00, 17:05 Italian time (exact matches)
       if (isSummer) {
-        // Summer (CEST): 16:30-17:05 Italian = 14:30-15:05 UTC
-        return (hour === 14 && minutes >= 30) || (hour === 15 && minutes <= 5);
+        // Summer (CEST): 14:55, 15:00, 15:05 UTC exactly
+        return (hour === 14 && minutes === 55) ||
+               (hour === 15 && (minutes === 0 || minutes === 5));
       } else {
-        // Winter (CET): 16:30-17:05 Italian = 15:30-16:05 UTC
-        return (hour === 15 && minutes >= 30) || (hour === 16 && minutes <= 5);
+        // Winter (CET): 15:55, 16:00, 16:05 UTC exactly
+        return (hour === 15 && minutes === 55) ||
+               (hour === 16 && (minutes === 0 || minutes === 5));
       }
     };
 

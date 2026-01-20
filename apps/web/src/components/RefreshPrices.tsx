@@ -114,6 +114,18 @@ export function RefreshPrices() {
           )}
         </div>
         <button
+          onClick={handleRefresh}
+          disabled={isCleaning || isRefreshing}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${
+            isCleaning || isRefreshing
+              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+              : "bg-blue-600 text-white hover:bg-blue-700"
+          }`}
+          title="Actualizar precios desde Trenitalia"
+        >
+          {isRefreshing ? "..." : "Actualizar"}
+        </button>
+        <button
           onClick={handleCleanupYoung}
           disabled={isCleaning || isRefreshing}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex-shrink-0 ${

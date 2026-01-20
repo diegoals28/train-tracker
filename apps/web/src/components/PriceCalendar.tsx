@@ -201,7 +201,7 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
                     )}
                     {dayData.return ? (
                       <div>
-                        <div className="text-emerald-300 font-medium">Napoli → Roma (17:00)</div>
+                        <div className="text-emerald-300 font-medium">Napoli → Roma (16:55-17:05)</div>
                         <div>Tren: {dayData.return.trainNumber}</div>
                         <div>Clase: {dayData.return.class}</div>
                         <div className="text-lg font-bold text-emerald-300">
@@ -303,7 +303,7 @@ export function PriceCalendar({ onSelectionChange }: PriceCalendarProps) {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 bg-emerald-100 rounded"></div>
-          <span className="text-gray-600">Vuelta (Napoli → Roma 17:00)</span>
+          <span className="text-gray-600">Vuelta (Napoli → Roma 16:55-17:05)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 ring-2 ring-brand-orange rounded"></div>

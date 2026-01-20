@@ -44,7 +44,7 @@ export default function Home() {
                 Roma ↔ Napoli Train Tracker
               </h1>
               <p className="text-gray-500">
-                Compara precios para el tren de las 07:00 (ida) y 17:00 (vuelta)
+                Compara precios para el tren de las 07:00 (ida) y 16:55-17:05 (vuelta)
               </p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function Home() {
               <div>
                 <p className="text-sm text-gray-500">Vuelta</p>
                 <p className="font-semibold text-gray-900">Napoli → Roma Termini</p>
-                <p className="text-xs text-brand-green font-medium">Salida: 17:00 / 17:05</p>
+                <p className="text-xs text-brand-green font-medium">Salida: 16:55 / 17:00 / 17:05</p>
               </div>
             </div>
           </div>

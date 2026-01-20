@@ -92,20 +92,22 @@ function isEuropeanSummerTime(date: Date): boolean {
 // Trenitalia returns times in Italian timezone
 // CET (winter) = UTC+1, CEST (summer) = UTC+2
 // For outbound: 07:00 Italian = 06:00 UTC (winter) or 05:00 UTC (summer)
-// For return: 16:55-17:05 Italian = 15:55-16:05 UTC (winter) or 14:55-15:05 UTC (summer)
+// For return: 16:55, 17:00, 17:05 Italian = 15:55, 16:00, 16:05 UTC (winter) or 14:55, 15:00, 15:05 UTC (summer)
 function isExactTimeMatch(departureTime: Date, isReturn: boolean): boolean {
   const utcHour = departureTime.getUTCHours();
   const minutes = departureTime.getUTCMinutes();
   const isSummer = isEuropeanSummerTime(departureTime);
 
   if (isReturn) {
-    // Return: 16:55-17:05 Italian time
+    // Return: ONLY 16:55, 17:00, 17:05 Italian time (exact matches)
     if (isSummer) {
-      // Summer (CEST): 14:55-15:05 UTC
-      return (utcHour === 14 && minutes >= 55) || (utcHour === 15 && minutes <= 5);
+      // Summer (CEST): 14:55, 15:00, 15:05 UTC exactly
+      return (utcHour === 14 && minutes === 55) ||
+             (utcHour === 15 && (minutes === 0 || minutes === 5));
     } else {
-      // Winter (CET): 15:55-16:05 UTC
-      return (utcHour === 15 && minutes >= 55) || (utcHour === 16 && minutes <= 5);
+      // Winter (CET): 15:55, 16:00, 16:05 UTC exactly
+      return (utcHour === 15 && minutes === 55) ||
+             (utcHour === 16 && (minutes === 0 || minutes === 5));
     }
   } else {
     // Outbound: 07:00 Italian time
@@ -122,8 +124,8 @@ function isExactTimeMatch(departureTime: Date, isReturn: boolean): boolean {
 async function scrapeSpecificSchedules() {
   console.log(`Starting scheduled scrape at ${new Date().toISOString()}`);
   console.log("Target schedules:");
-  console.log("  - Outbound (Roma -> Napoli): ~07:00");
-  console.log("  - Return (Napoli -> Roma): ~17:00");
+  console.log("  - Outbound (Roma -> Napoli): 07:00");
+  console.log("  - Return (Napoli -> Roma): 16:55, 17:00, 17:05");
 
   // Get routes from database
   const outboundRoute = await db.route.findFirst({
