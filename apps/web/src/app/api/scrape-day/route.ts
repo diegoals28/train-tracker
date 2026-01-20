@@ -264,16 +264,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Scrape return
-    const returnDate = new Date(date);
-    returnDate.setUTCHours(15, 0, 0, 0);
-    const returnResults = await scrapeTrenitalia(
+    // Scrape return - two queries to cover both DST scenarios
+    // Summer (CEST): 16:55 Italian = 14:55 UTC - query at 14:30 UTC
+    // Winter (CET): 16:55 Italian = 15:55 UTC - query at 15:30 UTC
+    const returnDateSummer = new Date(date);
+    returnDateSummer.setUTCHours(14, 30, 0, 0);
+    const returnResultsSummer = await scrapeTrenitalia(
       TRENITALIA_STATIONS.NAPOLI_CENTRALE,
       TRENITALIA_STATIONS.ROMA_TERMINI,
-      returnDate
+      returnDateSummer
     );
 
-    for (const train of returnResults) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const returnDateWinter = new Date(date);
+    returnDateWinter.setUTCHours(15, 30, 0, 0);
+    const returnResultsWinter = await scrapeTrenitalia(
+      TRENITALIA_STATIONS.NAPOLI_CENTRALE,
+      TRENITALIA_STATIONS.ROMA_TERMINI,
+      returnDateWinter
+    );
+
+    // Deduplicate results
+    const seenTrains = new Set<string>();
+    const allReturnResults = [...returnResultsSummer, ...returnResultsWinter].filter(
+      (train) => {
+        const key = `${train.trainNumber}-${train.departureTime.toISOString()}`;
+        if (seenTrains.has(key)) return false;
+        seenTrains.add(key);
+        return true;
+      }
+    );
+
+    for (const train of allReturnResults) {
       if (isExactTimeMatch(train.departureTime, true)) {
         for (const price of train.prices) {
           await db.price.create({
